@@ -1,38 +1,68 @@
-import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
+import FormGroup from '@mui/material/FormGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import useForm from '../hooks/useForm';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import config from '../../utils/config';
 
-function SignIn() {
+function PostUpdate() {
+  const id = useParams().id;
+  const navigate = useNavigate();
+
   const [response, setResponse] = useState({
     data: null,
     error: null,
     loading: true,
   });
-  const { formData, onChange } = useForm({
-    username: '',
-    password: '',
+
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    published: false,
   });
+
+  const onChange = (e) => {
+    setFormData((prevState) => ({
+      ...prevState,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const publishedChange = (e) => {
+    setFormData((prevState) => ({
+      ...prevState,
+      published: e.target.checked,
+    }));
+  };
+
+  useEffect(() => {
+    axios.get(`http://localhost:8080/api/posts/${id}`).then((res) => {
+      setFormData({
+        title: res.data.post.title,
+        content: res.data.post.content,
+        published: res.data.post.published,
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [formError, setFormError] = useState({
-    errorUsername: '',
-    errorPassword: '',
+    errorTitle: '',
+    errorContent: '',
   });
-  const { errorUsername, errorPassword } = formError;
 
-  const { username, password } = formData;
+  const { errorTitle, errorContent } = formError;
 
-  const navigate = useNavigate();
+  const { title, content, published } = formData;
 
   useEffect(() => {
     setResponse((prevState) => ({ ...prevState, loading: false }));
@@ -40,35 +70,34 @@ function SignIn() {
       const err = response?.error?.response?.data?.errors;
       if (err) {
         setFormError({
-          errorUsername:
-            err[0]?.param === 'username' && err[0].msg !== '' ? err[0].msg : '',
-          errorPassword:
-            err[0]?.param === 'password' && err[0].msg !== ''
+          errorTitle:
+            err[0]?.param === 'title' && err[0].msg !== '' ? err[0].msg : '',
+          errorContent:
+            err[0]?.param === 'content' && err[0].msg !== ''
               ? err[0].msg
-              : err[1]?.param === 'password' && err[1].msg !== ''
+              : err[1]?.param === 'content' && err[1].msg !== ''
               ? err[1].msg
               : '',
         });
       }
     }
+
     if (response.data !== null) {
-      const userData = {
-        user: {
-          username: response.data.user.username,
-          status: response.data.user.status,
-        },
-        token: response.data.token,
-      };
-      localStorage.setItem('user', JSON.stringify(userData));
-      navigate('/blog/cms');
+      navigate(`/blog/cms/post/${id}`);
     }
-  }, [response.data, response.error, navigate]);
+  }, [response.data, response.error, navigate, id]);
 
   const onSubmit = (e) => {
     setResponse((prevState) => ({ ...prevState, loading: true }));
     e.preventDefault();
     axios
-      .post('http://localhost:8080/api/users/sign-in', { username, password })
+      .put(
+        `http://localhost:8080/api/posts/${id}`,
+        {
+          ...formData,
+        },
+        config
+      )
       .then((res) => {
         setResponse((prevState) => ({
           ...prevState,
@@ -98,6 +127,7 @@ function SignIn() {
       </Container>
     );
   }
+
   return (
     <Container component="main" maxWidth="xs">
       <Box
@@ -108,41 +138,54 @@ function SignIn() {
           alignItems: 'center',
         }}
       >
-        <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
-          <LockOutlinedIcon />
-        </Avatar>
-
         <Typography component="h1" variant="h5">
-          Sign in
+          Update post
         </Typography>
         <Box component="form" onSubmit={onSubmit} noValidate sx={{ mt: 3 }}>
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <TextField
                 autoComplete="off"
-                name="username"
+                name="title"
                 required
                 fullWidth
-                id="username"
-                label="Username"
-                value={username}
+                id="title"
+                label="Title"
+                value={title}
                 onChange={onChange}
               />
-              <Typography color="error">{errorUsername}</Typography>
+              <Typography color="error">{errorTitle}</Typography>
             </Grid>
             <Grid item xs={12}>
               <TextField
                 autoComplete="off"
                 required
                 fullWidth
-                name="password"
-                label="Password"
-                type="password"
-                id="password"
-                value={password}
+                name="content"
+                label="Content"
+                type="Text"
+                id="content"
+                margin="normal"
+                multiline
+                rows={10}
+                value={content}
                 onChange={onChange}
               />
-              <Typography color="error">{errorPassword}</Typography>
+              <Typography color="error">{errorContent}</Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <FormGroup>
+                <FormControlLabel
+                  label="Publish"
+                  control={
+                    <Checkbox
+                      checked={published}
+                      value={published}
+                      onChange={publishedChange}
+                    />
+                  }
+                />
+              </FormGroup>
             </Grid>
           </Grid>
           <Button
@@ -151,11 +194,14 @@ function SignIn() {
             variant="contained"
             sx={{ mt: 3, mb: 2 }}
           >
-            Sign In
+            Submit
           </Button>
           <Typography align="center" component="h1" variant="h6" color="error">
             {response?.error?.message === 'Network Error'
               ? response?.error?.message
+              : null}
+            {response?.error?.response?.data === 'Unauthorized'
+              ? response?.error?.response?.data
               : null}
           </Typography>
         </Box>
@@ -164,4 +210,4 @@ function SignIn() {
   );
 }
 
-export default SignIn;
+export default PostUpdate;
