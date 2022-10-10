@@ -6,6 +6,8 @@ import { styled } from '@mui/material';
 
 import { Link, useNavigate } from 'react-router-dom';
 
+import signOut from '../utils/signOut';
+
 const StyledToolbar = styled(Toolbar)(({ theme }) => ({
   display: 'flex',
   justifyContent: 'space-between',
@@ -30,11 +32,6 @@ const StyledLogoButton = styled(StyledButton)(({ theme }) => ({
 function Navbar() {
   const user = JSON.parse(localStorage.getItem('user'));
   const navigate = useNavigate();
-
-  const signOut = () => {
-    localStorage.removeItem('user');
-    navigate('/blog/cms/sign-in');
-  };
 
   return (
     <AppBar position="static">
@@ -67,7 +64,13 @@ function Navbar() {
               Sign In
             </StyledButton>
           ) : (
-            <StyledButton variant="outlined" onClick={signOut}>
+            <StyledButton
+              variant="outlined"
+              onClick={() => {
+                signOut();
+                navigate('/blog/cms/sign-in');
+              }}
+            >
               Sign Out
             </StyledButton>
           )}
